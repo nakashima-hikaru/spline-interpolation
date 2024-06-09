@@ -7,6 +7,7 @@ At the present, this project provides:
 
 * (General) Spline
 * Catmull-Rom Spline
+* Natural Cubic Spline
 
 ### Cargo Feature Flags
 
