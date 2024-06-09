@@ -1,60 +1,108 @@
-use nalgebra::{Matrix4, Vector4};
+use crate::{HermiteSplineError, InterpolationValue};
+use nalgebra::{Matrix4, Point3, Vector4};
 use num_traits::Zero;
 
-
-struct Point<V> {
-    pub(crate) x: V,
-    pub(crate) y: V,
-    pub(crate) dydx: V,
+pub struct HermiteSpline<V: InterpolationValue> {
+    points: Vec<Point3<V>>,
+    m: Matrix4<V>,
 }
 
-struct HermiteSpline {
-    points: Vec<Point<f64>>,
-}
-
-impl HermiteSpline {
-    const M: Matrix4<f64> = Matrix4::new(2., -2., 1., 1., -3., 3., -2., -1., 0., 0., 1., 0., 1., 0., 0., 0.);
-    fn new(raw_points: &[(f64, f64, f64)]) -> Self {
+impl<V: InterpolationValue> HermiteSpline<V> {
+    /// Creates a new instance of `HermiteSpline` from a slice of raw points.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_points` - A slice of tuples representing the raw points of the spline.
+    ///                 Each tuple should contain three elements: the x-coordinate, the y-coordinate,
+    ///                 and the derivative of y with respect to x (dy/dx).
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the constructed `HermiteSpline` on success,
+    /// or a `HermiteSplineError` if the raw points are not in ascending order based on x-coordinate.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use spline_interpolation::hermite_spline::HermiteSpline;
+    ///
+    /// let raw_points = [(0.0, 0.0, 1.0), (1.0, 1.0, 2.0), (2.0, 0.0, -1.0)];
+    ///
+    /// let spline = HermiteSpline::try_new(&raw_points);
+    /// assert!(spline.is_ok());
+    /// ```
+    pub fn try_new(raw_points: &[(V, V, V)]) -> Result<Self, HermiteSplineError<V>> {
         let mut temp = raw_points[0].0;
 
         let mut points = Vec::new();
-        for raw_point in raw_points {
-            let point = Point {
-                x: raw_point.0,
-                y: raw_point.1,
-                dydx: raw_point.2,
-            };
+        for &(x, y, dydx) in raw_points {
+            let point = Point3::new(x, y, dydx);
             if point.x < temp {
-                panic!("points must be sorted");
+                return Err(HermiteSplineError::PointOrderError);
             }
             temp = point.x;
             points.push(point);
         }
-        Self { points }
+        let m = Matrix4::new(
+            V::from_i8(2).unwrap(),
+            V::from_i8(-2).unwrap(),
+            V::one(),
+            V::one(),
+            V::from_i8(-3).unwrap(),
+            V::from_i8(3).unwrap(),
+            V::from_i8(-2).unwrap(),
+            -V::one(),
+            V::zero(),
+            V::zero(),
+            V::one(),
+            V::zero(),
+            V::one(),
+            V::zero(),
+            V::zero(),
+            V::zero(),
+        );
+        Ok(Self { points, m })
     }
 
-    fn value(self, x: f64) -> f64 {
-        let pos = self.points.binary_search_by(|point| point.x.total_cmp(&x));
-        let pos = if pos.is_ok() {
-            pos.unwrap()
-        } else {
-            let ret = pos.unwrap_err();
-            if ret.is_zero() {
-                panic!("need extrapolation");
+    /// Tries to evaluate the interpolated value of Hermite spline at a given point x.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The point at which to evaluate the Hermite spline.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(value)` if the evaluation was successful, where `value` is the evaluated value of the Hermite spline at `x`.
+    /// Returns `Err(error)` if the evaluation was unsuccessful, where `error` is an enum variant indicating the reason for failure.
+    ///
+    /// # Errors
+    ///
+    /// Returns `OutOfLowerBound(x)` if `x` is less than the minimum x-coordinate value of any point in the Hermite spline.
+    /// Returns `OutOfUpperBound(x)` if `x` is greater than the maximum x-coordinate value of any point in the Hermite spline.
+    pub fn try_value(self, x: V) -> Result<V, HermiteSplineError<V>> {
+        match self
+            .points
+            .binary_search_by(|point| point.x.partial_cmp(&x).unwrap())
+        {
+            Ok(pos) => Ok(self.points[pos].y),
+            Err(pos) => {
+                if pos.is_zero() {
+                    return Err(HermiteSplineError::OutOfLowerBound(x));
+                }
+                if pos > self.points.len() {
+                    return Err(HermiteSplineError::OutOfUpperBound(x));
+                }
+                let pos = pos - 1;
+                let point = &self.points[pos];
+                let next_point = &self.points[pos + 1];
+                let h = next_point.x - point.x;
+                let delta = (x - point.x) / h;
+                let delta2 = delta * delta;
+                let delta3 = delta2 * delta;
+                let d = Vector4::new(delta3, delta2, delta, V::from_i8(1).unwrap());
+                let f = Vector4::new(point.y, next_point.y, point.z * h, next_point.z * h);
+                Ok((d.transpose() * self.m * f).x)
             }
-            if ret > self.points.len() {
-                panic!("need extrapolation");
-            }
-            ret - 1
-        };
-        let point = &self.points[pos];
-        let next_point = &self.points[pos + 1];
-        let h = next_point.x - point.x;
-        let delta = (x - point.x) / h;
-        let delta2 = delta * delta;
-        let delta3 = delta2 * delta;
-        let d = Vector4::new(delta3, delta2, delta, 1.);
-        let f = Vector4::new(point.y, next_point.y, point.dydx * h, next_point.dydx * h);
-        (d.transpose() * Self::M * f).x
+        }
     }
 }
