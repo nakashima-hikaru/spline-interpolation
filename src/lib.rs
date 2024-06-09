@@ -7,7 +7,6 @@ use thiserror::Error;
 
 pub mod catmull_rom_spline;
 pub mod hermite_spline;
-mod natural_cubic_spline;
 
 pub trait InterpolationValue:
 'static
