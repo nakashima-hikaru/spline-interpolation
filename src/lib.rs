@@ -1,12 +1,14 @@
 use num_traits::{FromPrimitive, Num};
 use std::fmt::Debug;
-use std::ops::{AddAssign, MulAssign, Neg};
+use std::ops::{AddAssign, DivAssign, MulAssign, Neg, SubAssign};
 #[cfg(feature = "decimal")]
 use rust_decimal::Decimal;
 use thiserror::Error;
 
 pub mod catmull_rom_spline;
 pub mod hermite_spline;
+pub mod natural_cubic_spline;
+pub(crate) mod tridiagonal_matrix;
 
 pub trait InterpolationValue:
 'static
@@ -17,9 +19,12 @@ pub trait InterpolationValue:
 + Debug
 + Sized
 + AddAssign
++ SubAssign
 + MulAssign
++ DivAssign
 + FromPrimitive
 {}
+
 
 impl InterpolationValue for f32 {}
 
