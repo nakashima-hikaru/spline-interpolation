@@ -1,0 +1,22 @@
+[package]
+name = "spline-interpolation"
+version = "0.1.0"
+authors = ["Hikaru Nakashima <nakashima.alg57@gmail.com>"]
+edition = "2021"
+license-file = "LICENSE"
+
+[dependencies]
+num-traits = "0.2.19"
+nalgebra = "0.32.5"
+thiserror = "1.0.61"
+rust_decimal = { version = "1.35", optional = true }
+
+
+[features]
+decimal = ["rust_decimal/default"]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+cargo = "warn"
