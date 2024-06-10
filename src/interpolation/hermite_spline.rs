@@ -30,7 +30,7 @@ impl<V: InterpolationValue> HermiteSpline<V> {
     /// # Example
     ///
     /// ```
-    /// use spline_interpolation::hermite_spline::HermiteSpline;
+    /// use spline_interpolation::interpolation::hermite_spline::HermiteSpline;
     ///
     /// let raw_points = [(0.0, 0.0, 1.0), (1.0, 1.0, 2.0), (2.0, 0.0, -1.0)];
     ///

@@ -32,7 +32,7 @@ impl<V: InterpolationValue> CatmullRomSpline<V> {
     /// # Example
     ///
     /// ```
-    /// use spline_interpolation::catmull_rom_spline::CatmullRomSpline;
+    /// use spline_interpolation::interpolation::catmull_rom_spline::CatmullRomSpline;
     ///
     /// let raw_points = [(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)];
     /// let spline = CatmullRomSpline::try_new(&raw_points);
