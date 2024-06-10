@@ -1,7 +1,12 @@
-use nalgebra::{Point3};
+use crate::math::tridiagonal_matrix::TridiagonalMatrix;
 use crate::{HermiteSplineError, InterpolationValue};
-use crate::tridiagonal_matrix::TridiagonalMatrix;
 use num_traits::Zero;
+
+struct Point3<V> {
+    pub x: V,
+    pub y: V,
+    pub dydx: V,
+}
 
 pub struct NaturalCubicSpline<V: InterpolationValue> {
     points: Vec<Point3<V>>,
@@ -39,27 +44,27 @@ impl<V: InterpolationValue> NaturalCubicSpline<V> {
                 b.push(V::zero());
             } else {
                 b.push(
-                    (raw_points[i + 1].1 - raw_points[i].1) / (raw_points[i + 1].0 - raw_points[i].0)
-                        - (raw_points[i].1 - raw_points[i - 1].1) / (raw_points[i].0 - raw_points[i - 1].0)
+                    (raw_points[i + 1].1 - raw_points[i].1)
+                        / (raw_points[i + 1].0 - raw_points[i].0)
+                        - (raw_points[i].1 - raw_points[i - 1].1)
+                            / (raw_points[i].0 - raw_points[i - 1].0),
                 )
             }
         }
 
         let matrix = TridiagonalMatrix::try_new(du, d, dl).unwrap();
-        let derivatives = matrix.try_solve(&b).unwrap();
-
+        let derivatives = matrix.solve(&b);
 
         let mut temp = raw_points[0].0;
         let mut points = Vec::new();
         for (&(x, y), dydx) in raw_points.iter().zip(derivatives) {
-            let point = Point3::new(x, y, dydx);
+            let point = Point3 { x, y, dydx };
             if point.x < temp {
                 return Err(HermiteSplineError::PointOrderError);
             }
             temp = point.x;
             points.push(point);
         }
-
 
         Ok(Self { points })
     }
@@ -83,10 +88,11 @@ impl<V: InterpolationValue> NaturalCubicSpline<V> {
                 let h = next_point.x - point.x;
                 let six = V::from_i8(6).unwrap();
                 Ok(
-                    (next_point.x - x) * (next_point.x - x) * (next_point.x - x) / six / h * point.z
-                        + (x - point.x) * (x - point.x) * (x - point.x) / six / h * next_point.z
-                        + (next_point.x - x) * (point.y / h - h / six * point.z)
-                        + (x - point.x) * (next_point.y / h - h / six * next_point.z)
+                    (next_point.x - x) * (next_point.x - x) * (next_point.x - x) / six / h
+                        * point.dydx
+                        + (x - point.x) * (x - point.x) * (x - point.x) / six / h * next_point.dydx
+                        + (next_point.x - x) * (point.y / h - h / six * point.dydx)
+                        + (x - point.x) * (next_point.y / h - h / six * next_point.dydx),
                 )
             }
         }
@@ -95,11 +101,9 @@ impl<V: InterpolationValue> NaturalCubicSpline<V> {
 
 #[cfg(test)]
 mod tests {
+    use crate::interpolation::natural_cubic_spline::NaturalCubicSpline;
     #[cfg(feature = "decimal")]
     use rust_decimal::Decimal;
-
-    use crate::natural_cubic_spline::NaturalCubicSpline;
-
 
     #[test]
     fn test_f64() {

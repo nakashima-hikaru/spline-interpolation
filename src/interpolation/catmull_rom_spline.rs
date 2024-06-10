@@ -1,13 +1,17 @@
 use crate::HermiteSplineError;
 use crate::InterpolationValue;
-use nalgebra::{Matrix4, Point2, Vector4};
+use nalgebra::{Matrix4, Vector4};
 use num_traits::Zero;
 use std::ops::Mul;
+
+struct Point2<V> {
+    pub x: V,
+    pub y: V,
+}
 
 pub struct CatmullRomSpline<V: InterpolationValue> {
     points: Vec<Point2<V>>,
 }
-
 
 impl<V: InterpolationValue> CatmullRomSpline<V> {
     /// Constructs a new CatmullRomSpline from a slice of raw points.
@@ -43,7 +47,7 @@ impl<V: InterpolationValue> CatmullRomSpline<V> {
         let mut temp = raw_points[0].0;
         let mut points = Vec::new();
         for &(x, y) in raw_points {
-            let point = Point2::new(x, y);
+            let point = Point2 { x, y };
             if point.x < temp {
                 return Err(HermiteSplineError::PointOrderError);
             }
@@ -85,94 +89,94 @@ impl<V: InterpolationValue> CatmullRomSpline<V> {
                 let d = Vector4::new(delta3, delta2, delta, V::one());
                 Ok((d.transpose()
                     * if pos == 0 {
-                    let next_next_point = &self.points[pos + 2];
-                    let next_h = next_next_point.x - next_point.x;
-                    let beta = h / (h + next_h);
-                    Matrix4::new(
-                        V::zero(),
-                        V::one() - beta,
-                        -V::one(),
-                        beta,
-                        V::zero(),
-                        -V::one() + beta,
-                        V::one(),
-                        -beta,
-                        V::zero(),
-                        -V::one(),
-                        V::one(),
-                        V::zero(),
-                        V::zero(),
-                        V::one(),
-                        V::zero(),
-                        V::zero(),
-                    )
+                        let next_next_point = &self.points[pos + 2];
+                        let next_h = next_next_point.x - next_point.x;
+                        let beta = h / (h + next_h);
+                        Matrix4::new(
+                            V::zero(),
+                            V::one() - beta,
+                            -V::one(),
+                            beta,
+                            V::zero(),
+                            -V::one() + beta,
+                            V::one(),
+                            -beta,
+                            V::zero(),
+                            -V::one(),
+                            V::one(),
+                            V::zero(),
+                            V::zero(),
+                            V::one(),
+                            V::zero(),
+                            V::zero(),
+                        )
                         .mul(Vector4::new(
                             V::zero(),
                             point.y,
                             next_point.y,
                             next_next_point.y,
                         ))
-                } else if pos + 2 == self.points.len() {
-                    let prev_point = &self.points[pos - 1];
-                    let prev_h = next_point.x - prev_point.x;
-                    let alpha = h / (h + prev_h);
-                    Matrix4::new(
-                        -alpha,
-                        V::one(),
-                        -V::one() * alpha,
-                        V::zero(),
-                        V::from_i8(2).unwrap() * alpha,
-                        V::from_i8(-2).unwrap(),
-                        V::from_i8(2).unwrap() - V::from_i8(2).unwrap() * alpha,
-                        V::zero(),
-                        -alpha,
-                        V::zero(),
-                        alpha,
-                        V::zero(),
-                        V::zero(),
-                        V::one(),
-                        V::zero(),
-                        V::zero(),
-                    )
+                    } else if pos + 2 == self.points.len() {
+                        let prev_point = &self.points[pos - 1];
+                        let prev_h = next_point.x - prev_point.x;
+                        let alpha = h / (h + prev_h);
+                        Matrix4::new(
+                            -alpha,
+                            V::one(),
+                            -V::one() * alpha,
+                            V::zero(),
+                            V::from_i8(2).unwrap() * alpha,
+                            V::from_i8(-2).unwrap(),
+                            V::from_i8(2).unwrap() - V::from_i8(2).unwrap() * alpha,
+                            V::zero(),
+                            -alpha,
+                            V::zero(),
+                            alpha,
+                            V::zero(),
+                            V::zero(),
+                            V::one(),
+                            V::zero(),
+                            V::zero(),
+                        )
                         .mul(Vector4::new(
                             prev_point.y,
                             point.y,
                             next_point.y,
                             V::zero(),
                         ))
-                } else {
-                    let prev_point = &self.points[pos - 1];
-                    let prev_h = next_point.x - prev_point.x;
-                    let alpha = h / (h + prev_h);
-                    let next_next_point = &self.points[pos + 2];
-                    let next_h = next_next_point.x - next_point.x;
-                    let beta = h / (h + next_h);
-                    Matrix4::new(
-                        -alpha,
-                        V::from_i8(2).unwrap() - beta,
-                        V::from_i8(-2).unwrap() + alpha,
-                        beta,
-                        V::from_i8(2).unwrap() * alpha,
-                        beta - V::from_i8(3).unwrap(),
-                        V::from_i8(3).unwrap() - V::from_i8(2).unwrap() * alpha,
-                        -beta,
-                        -alpha,
-                        V::zero(),
-                        alpha,
-                        V::zero(),
-                        V::zero(),
-                        V::one(),
-                        V::zero(),
-                        V::zero(),
-                    )
+                    } else {
+                        let prev_point = &self.points[pos - 1];
+                        let prev_h = next_point.x - prev_point.x;
+                        let alpha = h / (h + prev_h);
+                        let next_next_point = &self.points[pos + 2];
+                        let next_h = next_next_point.x - next_point.x;
+                        let beta = h / (h + next_h);
+                        Matrix4::new(
+                            -alpha,
+                            V::from_i8(2).unwrap() - beta,
+                            V::from_i8(-2).unwrap() + alpha,
+                            beta,
+                            V::from_i8(2).unwrap() * alpha,
+                            beta - V::from_i8(3).unwrap(),
+                            V::from_i8(3).unwrap() - V::from_i8(2).unwrap() * alpha,
+                            -beta,
+                            -alpha,
+                            V::zero(),
+                            alpha,
+                            V::zero(),
+                            V::zero(),
+                            V::one(),
+                            V::zero(),
+                            V::zero(),
+                        )
                         .mul(Vector4::new(
                             prev_point.y,
                             point.y,
                             next_point.y,
                             next_next_point.y,
                         ))
-                })
-                    .x)
+                    })
+                .x)
             }
         }
     }
@@ -183,8 +187,7 @@ mod tests {
     #[cfg(feature = "decimal")]
     use rust_decimal::Decimal;
 
-    use crate::catmull_rom_spline::CatmullRomSpline;
-
+    use crate::interpolation::catmull_rom_spline::CatmullRomSpline;
 
     #[test]
     fn test_f64() {
@@ -204,6 +207,9 @@ mod tests {
         ];
         let interpolator = CatmullRomSpline::try_new(&points).unwrap();
         let val = interpolator.try_value(Decimal::new(75, 2)).unwrap();
-        assert_eq!(val, Decimal::from_str_exact("0.2708333333333333333333333333").unwrap());
+        assert_eq!(
+            val,
+            Decimal::from_str_exact("0.2708333333333333333333333333").unwrap()
+        );
     }
 }

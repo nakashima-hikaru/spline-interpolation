@@ -1,6 +1,12 @@
 use crate::{HermiteSplineError, InterpolationValue};
-use nalgebra::{Matrix4, Point3, Vector4};
+use nalgebra::{Matrix4, Vector4};
 use num_traits::Zero;
+
+struct Point3<V> {
+    pub x: V,
+    pub y: V,
+    pub dydx: V,
+}
 
 pub struct HermiteSpline<V: InterpolationValue> {
     points: Vec<Point3<V>>,
@@ -36,7 +42,7 @@ impl<V: InterpolationValue> HermiteSpline<V> {
 
         let mut points = Vec::new();
         for &(x, y, dydx) in raw_points {
-            let point = Point3::new(x, y, dydx);
+            let point = Point3 { x, y, dydx };
             if point.x < temp {
                 return Err(HermiteSplineError::PointOrderError);
             }
@@ -100,7 +106,7 @@ impl<V: InterpolationValue> HermiteSpline<V> {
                 let delta2 = delta * delta;
                 let delta3 = delta2 * delta;
                 let d = Vector4::new(delta3, delta2, delta, V::from_i8(1).unwrap());
-                let f = Vector4::new(point.y, next_point.y, point.z * h, next_point.z * h);
+                let f = Vector4::new(point.y, next_point.y, point.dydx * h, next_point.dydx * h);
                 Ok((d.transpose() * self.m * f).x)
             }
         }

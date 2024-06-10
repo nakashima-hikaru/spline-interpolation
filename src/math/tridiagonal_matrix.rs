@@ -5,7 +5,6 @@ pub enum MatrixValidationError {
     MatrixShapeError,
 }
 
-
 pub(crate) struct TridiagonalMatrix<V: InterpolationValue> {
     upper_diagonal: Vec<V>,
     diagonal: Vec<V>,
@@ -14,10 +13,14 @@ pub(crate) struct TridiagonalMatrix<V: InterpolationValue> {
 }
 
 impl<V: InterpolationValue> TridiagonalMatrix<V> {
-    pub fn try_new(upper_diagonal: Vec<V>,
-                   diagonal: Vec<V>,
-                   lower_diagonal: Vec<V>) -> Result<Self, MatrixValidationError> {
-        if !(upper_diagonal.len() == lower_diagonal.len() && upper_diagonal.len() + 1 == diagonal.len()) {
+    pub fn try_new(
+        upper_diagonal: Vec<V>,
+        diagonal: Vec<V>,
+        lower_diagonal: Vec<V>,
+    ) -> Result<Self, MatrixValidationError> {
+        if !(upper_diagonal.len() == lower_diagonal.len()
+            && upper_diagonal.len() + 1 == diagonal.len())
+        {
             return Err(MatrixValidationError::MatrixShapeError);
         }
         Ok(Self {
@@ -29,8 +32,9 @@ impl<V: InterpolationValue> TridiagonalMatrix<V> {
     }
 
     // Solve Ax = b.
-    pub fn try_solve(self, b: &[V]) -> Result<Vec<V>, MatrixValidationError> {
-        thomas(
+    pub fn solve(self, b: &[V]) -> Vec<V> {
+        // shape validation is already done at construction phase
+        solve_with_thomas_algorithm_unchecked(
             self.size,
             self.lower_diagonal.as_slice(),
             self.diagonal.as_slice(),
@@ -40,11 +44,13 @@ impl<V: InterpolationValue> TridiagonalMatrix<V> {
     }
 }
 
-fn thomas<V: InterpolationValue>(matrix_size: usize, lower_diagonal: &[V], diagonal: &[V],
-                                 upper_diagonal: &[V], b: &[V]) -> Result<Vec<V>, MatrixValidationError> {
-    if b.len() != matrix_size {
-        return Err(MatrixValidationError::MatrixShapeError);
-    }
+fn solve_with_thomas_algorithm_unchecked<V: InterpolationValue>(
+    matrix_size: usize,
+    lower_diagonal: &[V],
+    diagonal: &[V],
+    upper_diagonal: &[V],
+    b: &[V],
+) -> Vec<V> {
     let mut x = b.to_vec();
     let mut scratch = Vec::with_capacity(matrix_size);
     scratch.push(upper_diagonal[0] / diagonal[0]);
@@ -53,9 +59,12 @@ fn thomas<V: InterpolationValue>(matrix_size: usize, lower_diagonal: &[V], diago
     /* loop from 1 to X - 1 inclusive */
     for ix in 1..matrix_size {
         if ix < matrix_size - 1 {
-            scratch.push(upper_diagonal[ix] / (diagonal[ix] - lower_diagonal[ix - 1] * scratch[ix - 1]));
+            scratch.push(
+                upper_diagonal[ix] / (diagonal[ix] - lower_diagonal[ix - 1] * scratch[ix - 1]),
+            );
         }
-        x[ix] = (x[ix] - lower_diagonal[ix - 1] * x[ix - 1]) / (diagonal[ix] - lower_diagonal[ix - 1] * scratch[ix - 1]);
+        x[ix] = (x[ix] - lower_diagonal[ix - 1] * x[ix - 1])
+            / (diagonal[ix] - lower_diagonal[ix - 1] * scratch[ix - 1]);
     }
 
     /* loop from X - 2 to 0 inclusive */
@@ -63,5 +72,5 @@ fn thomas<V: InterpolationValue>(matrix_size: usize, lower_diagonal: &[V], diago
         let temp = scratch[ix] * x[ix + 1];
         x[ix] -= temp;
     }
-    Ok(x)
+    x
 }
